@@ -1,0 +1,7 @@
+## Interface: 11507
+## Title: ShardPrune
+## Notes: Prunes soul shards down to a set amount
+## Author: Pieti
+## Version: 1.0
+
+ShardPrune.lua
