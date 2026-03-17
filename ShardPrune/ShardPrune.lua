@@ -1,5 +1,5 @@
 local SOUL_SHARD_ID = 6265
-local maxShards = 3
+local maxShards = 10
 
 local addonName = "ShardPrune"
 
