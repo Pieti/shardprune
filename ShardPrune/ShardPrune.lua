@@ -7,14 +7,32 @@ local function Msg(text)
 	print("|cffff6600" .. addonName .. ":|r " .. text)
 end
 
-local function GetShardSlots()
+local function IsSoulShardBag(bag)
+	if bag == 0 then
+		return false
+	end
+
+	local family = C_Container.GetContainerNumFreeSlots(bag)
+	if not family then
+		return false
+	end
+
+	local _, bagFamily = C_Container.GetContainerNumFreeSlots(bag)
+	return bagFamily == 8
+end
+
+local function GetShardSlots(includeShardBags)
 	local slots = {}
 
 	for bag = 0, 4 do
-		local numSlots = C_Container.GetContainerNumSlots(bag)
-		for slot = 1, numSlots do
-			if C_Container.GetContainerItemID(bag, slot) == SOUL_SHARD_ID then
-				slots[#slots + 1] = { bag = bag, slot = slot }
+		local isShardBag = IsSoulShardBag(bag)
+
+		if includeShardBags or not isShardBag then
+			local numSlots = C_Container.GetContainerNumSlots(bag)
+			for slot = 1, numSlots do
+				if C_Container.GetContainerItemID(bag, slot) == SOUL_SHARD_ID then
+					slots[#slots + 1] = { bag = bag, slot = slot }
+				end
 			end
 		end
 	end
@@ -22,8 +40,12 @@ local function GetShardSlots()
 	return slots
 end
 
-local function GetShardCount()
-	return #GetShardSlots()
+local function GetTotalShardCount()
+	return #GetShardSlots(true)
+end
+
+local function GetPrunableShardSlots()
+	return GetShardSlots(false)
 end
 
 local function PruneOneShard()
@@ -31,20 +53,24 @@ local function PruneOneShard()
 		ClearCursor()
 	end
 
-	local shardSlots = GetShardSlots()
-	local total = #shardSlots
-
-	if total <= maxShards then
+	local totalShards = GetTotalShardCount()
+	if totalShards <= maxShards then
 		return false
 	end
 
-	-- Delete the last shard found
-	local target = shardSlots[total]
+	local prunableShards = GetPrunableShardSlots()
+	local prunableCount = #prunableShards
+
+	if prunableCount == 0 then
+		Msg("Over the limit, but all extra shards are in soul shard bags.")
+		return false
+	end
+
+	local target = prunableShards[prunableCount]
 
 	C_Container.PickupContainerItem(target.bag, target.slot)
 
 	if not CursorHasItem() then
-		Msg("Could not pick up a shard.")
 		return false
 	end
 
@@ -56,7 +82,7 @@ local function PruneOneShard()
 		return false
 	end
 
-	return true, total - 1
+	return true, totalShards - 1
 end
 
 SLASH_SHARDPRUNE1 = "/shardprune"
@@ -64,7 +90,7 @@ SlashCmdList["SHARDPRUNE"] = function(msg)
 	msg = (msg or ""):lower():match("^%s*(.-)%s*$")
 
 	if msg == "status" then
-		Msg("Currently keeping up to " .. maxShards .. " shard(s). You have " .. GetShardCount() .. ".")
+		Msg("Keeping up to " .. maxShards .. " shard(s). You have " .. GetTotalShardCount() .. " total.")
 		return
 	end
 
@@ -77,6 +103,6 @@ SlashCmdList["SHARDPRUNE"] = function(msg)
 
 	local deleted, remaining = PruneOneShard()
 	if deleted then
-		Msg("Deleted 1 shard. " .. remaining .. " remaining.")
+		Msg("Deleted 1 shard. " .. remaining .. " total remaining.")
 	end
 end
